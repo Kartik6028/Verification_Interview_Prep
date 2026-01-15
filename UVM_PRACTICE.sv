@@ -627,12 +627,10 @@ class my_virtual_sequence extend uvm_sequence #(uvm_sequence_item);
                 seq1 = my_sequence::type_id::create ("seq1", this);
                 seq1.start (seqr);
             end
-
             begin
                 seq2 =  my_sequence2::type_id::create("seq2", this);
                 seq2.start (seqr);
             end
-
         join
     endtask
 endclass
