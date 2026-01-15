@@ -602,7 +602,49 @@ class my_evaluator extends uvm_subscriber #(my_base_pkt);
 endclass
 
 
+// Virtual Sequencer is used to remove hierarichal paths like seq.start (env.agent.sequencer)
+//phase.phase_done.set_drain_time(this,10 ); - used to  delay dropping an objection for the scoreboard to allow time for pending transactions to be processed.
+// so agent would have something like, actual_sequencer seqr;
+//and connect it the driver, in the ENV, you would do uvm_sequencer #( type same as the actual seqr) my_virt_seqr
+// and in connect phase this.my_virt_seqr = agnt.seqr
+// now the benefit is that in the test itself you can do
+// my_virtual_seq seq1;
+// seq1 type_id::Create, 
+// and configure the env, and do seq1.seqr = env.seqr, and seq1.start (null);
+class my_virtual_sequence extend uvm_sequence #(uvm_sequence_item);
+    `uvm_component_utils (my_virtual_sequence);
+    my_sequence seq1;
+    my_sequence2 seq2;
+    uvm_sequencer #(uvm_sequence_item) seqr; // a virtual sequencer, this is just a handle to the actual sequencer. Hence no need to type_id:: create
+    // The agent will actually have the real sequenccer, that would be connected to the driver, Agent passes the handle to this seqr up the chain, to ENV and to TEST, which in turn passes it to the seq it is starting.
+    function new  (string name = "my_virtual_sequence");
+        super.new(name);
+    endfunction
 
+    task body ()
+        fork 
+            begin
+                seq1 = my_sequence::type_id::create ("seq1", this);
+                seq1.start (seqr);
+            end
+
+            begin
+                seq2 =  my_sequence2::type_id::create("seq2", this);
+                seq2.start (seqr);
+            end
+
+        join
+    endtask
+endclass
+
+
+
+// You can do v_seqr.set_arbtritration (SEQ_ARB_RANDOM)  in the virtual sequence if two or more sequences running on the same seqr.
+// you can do set_priority (100) inside the actual sequence itself, and pair it with sequencer with arb mode set as SEQ_ARB_WEIGHTED
+// you can use lock() and  unlock () within a sequence to get exclusive access to the seqr, once the inflight tx items are sent
+// Or do grab () and ungrab () if you want to force the inlfight TX items as well.
+// can use get_response(item) in the seq paired with seq_item_port.put(item) to send feedback back to the sequence for maybe control
+//p_sequencer and m_sequencer, later is the base that is given to you by default. But you don't have the actual handles to the actual seqr inside that base virt seqr, for that you need to do cast with p_sequencer, and you get visibility to the initernal seqrs.
 
 
 // ARBITRATION SEQUENCE
