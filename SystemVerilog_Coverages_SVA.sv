@@ -1,14 +1,12 @@
 //WRITE A FUNCTION TO GET STREAMING VALUES OF DATA IN AND CREATE AN INTERNAL BUFFER OF LET'S SAY 10 ITEMS. NOW YOU HAVE KEEP CALCULATING THE MAX VALUE FROM THAT BUFFER, BASICALLY KEEP A HISTORY OF LAST 10 ITEMS.. AND WHEN ASKED POP OUT THE MAX FROM THOSE
 
-function int buffmax (bit [31:0] data_in, bit get_max);
+function bit [31:0] buffmax (bit [31:0] data_in, bit get_max);
     int max_val = 0;
-
     static bit [31:0] buff [$];
     if (buff.size() < 10) begin 
                 buff.push_back(data_in);
-                
     end
-    else if  begin
+    else begin
         buff.pop_front();
         buff.push_back(data_in);
     end
@@ -22,28 +20,35 @@ function int buffmax (bit [31:0] data_in, bit get_max);
     end
     return max_val;
 endfunction
+// LOGIC and BIT difference is 4 staate and 2 state respectively
+// With functions use automatic making each func call independent.
+// with sv void functions you can pass by value using input keyword. and within a void function you can use output keyword and get the output value.
 
+function void automatic bit [31:0] factorial (input bit [7:0] num, output bit[31:0] fact);
+    bit [31:0] result;
+    result =1;
+    for (int i =1; i<= num; i++) begin
+        result = result * i;
+    end
+    return result;
+endfunction
+
+// Use REF for call by reference.
+
+bit [31:0] res;
+factorial(5, res);
 
 // write  a task to count the number of clk cycles when start goes high, and stop when stop goes high
+task automatic count (input bit start, input bit stop, output bit [31:0] count);
 
+    count=0;
+    @(posedge clk) while (!start);
 
-
-task count (input bit start, input bit stop, output bit [31:0] count
-
-);
-
-count =0;
-forever begin
-    @(posedge clk iff start); 
-    count =1;
-    while (!stop) 
-        begin
+    while (!stop) begin
             @(posedge clk);
             count++;
-        end
-    
-end
 
+    end
 
 endtask
 
@@ -157,7 +162,6 @@ end
 end
 endcase
 
-
 end
 
 always @ (posedge clk )
@@ -166,57 +170,9 @@ begin
         rthreshold= rthreshold +somevalue;
         flag =1; 
     end
-    
-
 end
-
-
-
-
 endmodule 
 
-
-
-dual port ram - write port and read port, 
- addr;
- data;
- wen;
- ren;
-
- wen ren
- 0   0
- 0   1
- 1   0
- 1   1  // 
-
- // sequence
-    // wr_seq
-            // task body
-            start_item()
-                waddr
-                raddr
-                data
-
-            finish_item()
-
-            //
-
-    // rd_seq
-
-    
-
-/// DRIVER
-
-//wr_seq.start ()
-
-
-seq_item_port.get_next_item()
-wen=1
-ren=1;
-
-drive (pkt);
-
-item_finish
 
 
 // FIFO - was cannot have a new wr when the fifo is full.
@@ -289,8 +245,6 @@ constraint arr {
     for (int i =0 ; i< arr.size-1 ; i+=) 
         for (int j =1; j<size-1;j++    )
           if (i!=j)  arr[j] != arr[i];
-         
-
     arr [i+1] > arr [i];
 }
 //AIE
@@ -441,27 +395,20 @@ rand bit [3:0] burst_len;
 
 constraint range {
     addr inside {[32'h4000_0000 : 32'h4000_FFFF]};
-
 }
 
 constraint burst_len {
- 
-
-    burst_len = $onehot (burst_len);
-    //OR
-    burst_len == (!(burst_len && (burst_len -1)));
-    //OR
     burst_len inside {[4'd1, 4'd2, 4'd4, 4'd8, 4'd16]};
 }
 
-constrain aligment {
+constraint aligment {
 
     addr % (burst_len * 4) == 0;
 }
 
 constraint burst_range {
 
-    (addr[11:0] + (burst_len*4 -1 ))<=4096;
+    (addr[11:0] + (burst_len*4 -1 ))<=4095;
 }
 endclass
 
@@ -478,7 +425,7 @@ A: [0x9000_0000 : 0x9000_1FFF]
 B: [0x9000_4000 : 0x9000_7FFF]
 C: [0x9000_C000 : 0x9000_FFFF]
 
-Weights: A:1, B:3, C:2 (i.e., B most likely).
+Weights: A:1, B:3, C:2 (i.e., B most likely).\\
 
 Alignment: 64B (cacheline).
 
@@ -492,8 +439,8 @@ Optional: when is_streaming==1, consecutive randomizations should prefer monoton
 rand bit [31:0] addr;
 constraint range{
     addr dist { 
-                [32'h9000_0000: 32'h9000_1FFF] := 1
-                [32'h9000_4000: 32'h9000_7FFF] := 3
+                [32'h9000_0000: 32'h9000_1FFF] := 1,
+                [32'h9000_4000: 32'h9000_7FFF] := 3,
                 [32'h9000_C000: 32'h9000_FFFF] := 2
                 };
 }
@@ -506,8 +453,8 @@ constraint forbid {
     (addr % 2048) inside [32'd256:32'd2048];
     }
 
-constrain stream{
-    streaming -> soft addr > $past(addr);
+constraint stream{
+    if is_streaming -> soft addr > prev_addr;
 
 }
 /*
