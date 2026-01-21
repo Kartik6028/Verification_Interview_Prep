@@ -1,36 +1,54 @@
 //WRITE A FUNCTION TO GET STREAMING VALUES OF DATA IN AND CREATE AN INTERNAL BUFFER OF LET'S SAY 10 ITEMS. NOW YOU HAVE KEEP CALCULATING THE MAX VALUE FROM THAT BUFFER, BASICALLY KEEP A HISTORY OF LAST 10 ITEMS.. AND WHEN ASKED POP OUT THE MAX FROM THOSE
 
-function bit [31:0] buffmax (bit [31:0] data_in, bit get_max);
-    int max_val = 0;
-    static bit [31:0] buff [$];
-    if (buff.size() < 10) begin 
-                buff.push_back(data_in);
+
+function void buffmax  (input bit [31:0] data_in, input bit get_max, output bit [31:0] max_val);
+    static bit [31:0] que[$];
+    
+    if (que.size() <10 ) begin
+        que.push_back(data_in);
     end
     else begin
-        buff.pop_front();
-        buff.push_back(data_in);
+        que.pop_front();
+        que.push_back (data_in);
     end
     if (get_max) begin
-        max_val = buff[0];
-        foreach (buff[i]) begin
-            if (buff[i]>max_val) begin
-                max_val = buff[i];
-            end
+        max_val = 0;
+        foreach (que[i])begin
+                if (que[i]>max_val) begin
+                    max_val =  que[i];
+                end
         end
     end
-    return max_val;
 endfunction
-// LOGIC and BIT difference is 4 staate and 2 state respectively
-// With functions use automatic making each func call independent.
-// with sv void functions you can pass by value using input keyword. and within a void function you can use output keyword and get the output value.
 
-function void automatic bit [31:0] factorial (input bit [7:0] num, output bit[31:0] fact);
-    bit [31:0] result;
-    result =1;
-    for (int i =1; i<= num; i++) begin
-        result = result * i;
+// Infinite stream of incoming data no history, just give max when asked
+
+function bit [31:0] stream_max (bit [31:0] data_in, bit get_max );
+    static bit [31:0] max_val;
+    if (data_in >= max_val) begin
+        max_val = data_in;
     end
-    return result;
+    if (get_max)return max_val;
+endfunction
+
+
+
+// LOGIC and BIT difference is 4 staate and 2 state respectively
+// With functions use automatic making each func call independent or thread sage for concurrent calls.
+// with sv void functions you can pass by value using input keyword. and within a void function you can use output keyword and get the output value by refernece.
+//main diff between using input output pattern as opposed to using a return function is that you with later you cannot have multiple outputs from a function.
+
+// functions are automatic by default, and tasks are static by default.
+// Main difference between function and a task, is that functions must end in zero sim time, whereas tasks may consume sim time and have timing control.
+
+
+// factorial of n 
+function void fact ( input bit [31:0] n, output bit [31:0] fact);
+    
+    for (int unsigned i =1 ; i <= n;i++) begin
+        fact = fact * i;
+    end
+
 endfunction
 
 // Use REF for call by reference.
@@ -40,19 +58,13 @@ factorial(5, res);
 
 // write  a task to count the number of clk cycles when start goes high, and stop when stop goes high
 task automatic count (input bit start, input bit stop, output bit [31:0] count);
-
-    count=0;
-    @(posedge clk) while (!start);
-
+    @ (posedge clk iff start);
+    count=1;
     while (!stop) begin
-            @(posedge clk);
-            count++;
-
+        @(posedge clk)
+        count=count+1;
     end
-
 endtask
-
-
 
 //
 //AIE
@@ -60,177 +72,112 @@ Can you show me how do you write a SV code and assertion check for the spec
 Whenever synchronous RESET is set, READY should go low.
 2 clocks after every synchronous RESET release, READY should go high.
 
-
-module xyz
-     (
-    input clk;
-    input rst;
-    output rdy;
-
+module test (
+input bit clk,
+input bit reset,
+output ready
 );
-
-always@ (posedge clk ) begin
-    
-    if(rst) begin
-        rdy =0;
-        count =0;        
+bit [1:0] count;
+always @ (posedge clk ) begin
+    if (reset) begin
+        ready<=0;
+        count <=0;
     end
     else begin
-        count <= count+1;
-        if (count==2 ) 
-        begin
-            rdy <=1;
-            count<=0;
+        count+=1;
+        if (count ==2'd2) begin
+            ready <=1   ;
         end
-    
     end
-
 end
-    
 endmodule
 
 
-property chk @ (posedge clk )
- (rst) |-> (rdy ==0)
+property reset_check;
+    @ (posedge clk) reset |-> (!ready);
 endproperty
 
-property check2 (@ pseedge clk)
- (!rst) |-> #2 rdy;
+property ready_check; 
+     @ (posedge clk) $fell (reset) |-> #2 rdy ;
 endproperty
 
+assert property (reset_check);
+assert property (ready_check);
 
-assert chk;
-
-
-//AIE
-
-Can you write a python code to parse a file and change the first line first word as 1, 2nd line 2nd word as 2 and so on.
-design a traffic controller , control red-green-yellow, input for walk sign. Cycle through RED GREEN YELLOW, whenever input is walk=1, transition to RED LIGHT.
-
+//design a traffic controller , control red-green-yellow, input for walk sign. Cycle through RED GREEN YELLOW, whenever input is walk=1, transition to RED LIGHT.
 
 module traffic_controller(
-input clk;
-input walk;
-input rst;
-output red;
-output green;
-output yellow;
-);
-bit [1:0] state;next_state;
-always @(posedge clk)
-if (rst)begin
-    state<= 2'b00;
-    count <=1'b0;
+    input clk;
+    input walk;
+    input rst;
+    output red;
+    output green;
+    output yellow;
+    );
+    bit [1:0] state;next_state;
+    always @(posedge clk)
+    if (rst)begin
+        state<= 2'b00;
+        count <=1'b0;
 
-end
+    end
 
-else begin 
+    else begin 
 
 
-case (state) begin
+    case (state) begin
 
-2'b00: begin
-    state<= 2'b11;
-end
+    2'b00: begin
+        state<= 2'b11;
+    end
 
-2'b01:   //RED
-    begin
+    2'b01:   //RED
+        begin
+            count=count+1;
+            if ((count == rthreshold )) begin
+                    state<= 2'b11;
+                    flag <=0;
+             end
+
+
+        end
+
+    2'b10:    // YELLOW
+        begin
+                    count=count+1;
+                  if (count == ythreshold) begin
+                    state<= 2'b01;
+                  end
+
+        end
+
+    2'b11:   // GREEN
         count=count+1;
-        if ((count == rthreshold )) begin
-                state<= 2'b11;
-                flag <=0;
-         end
-         
+        if (count == gthreshold) begin
+            state<= 2'b10;
+        end
+
+    end
+    endcase
 
     end
 
-2'b10:    // YELLOW
+    always @ (posedge clk )
     begin
-                count=count+1;
-              if (count == ythreshold) begin
-                state<= 2'b01;
-              end
-
+        if (walk && !flag) begin
+            rthreshold= rthreshold +somevalue;
+            flag =1; 
+        end
     end
-
-2'b11:   // GREEN
-    count=count+1;
-    if (count == gthreshold) begin
-        state<= 2'b10;
-    end
-
-end
-endcase
-
-end
-
-always @ (posedge clk )
-begin
-    if (walk && !flag) begin
-        rthreshold= rthreshold +somevalue;
-        flag =1; 
-    end
-end
 endmodule 
-
-
-
-// FIFO - was cannot have a new wr when the fifo is full.
-
-property  fcheck @posedge clk;
-$rose(wen) |-> (!full);
-endproperty
-
-assert fcheck;
-
-4 different BANKs -
-0 - 0 -3 // 
-1   4- 7
-2   8 - 11
-3   12 -15
-
-parameter SIZE =16;
-bit [31:0]addr;
-add4 [3:0] -  0000
-              0011
-
-              0100
-              0111
-
-
-              1000
-              1011
-
-              1100
-              1111
-
-constraint b1 {
-        addr within {  [ start_addr: start_addr + (size*4) ] }
-
-}
-
-constraint ban {
-    start_addr[3:2] = 2'b01;
-
-}
-    
-
 
 
 // write a function take a 32bit input, returns true if value is one hot
 
-
-function onehot ()
-
-    count = $countones (input)
-    if (count ==1) begin
-        return true
-    else return false
-
+function bit onehot (input bit [31:0]in);
+    return (in !=0)  && (in & (in-1) ==0);
 endfunction
 
-
-return((in & (in -1) ) == 0)
 
 //AII
 
