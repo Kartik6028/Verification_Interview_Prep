@@ -524,17 +524,18 @@ Addresses must be sorted ascending (addr_q[i] < addr_q[i+1]).
 The distance between consecutive entries must be at least 128 B apart.
 The last entry must not cross the 4 KB boundary.
 */
-
-rand bit [31:0] addr_q [8];
-constraint addr_range {
-    foreach (addr_q[i]) {
-        addr_q[i] inside {[32'h8000_0000 :  32'h8000_0FFF]};
-        addr_q[i] [5:0] == 'b0;
-        if (i>0) addr_q[i] >= (addr_q[i-1] + 8'h80);
-        if (i==7)addr_q [i] <= 12'h1000; 
+class packet extends uvm_sequence_item;
+    rand bit [31:0] addr_q [8];
+    constraint addr_range {
+        foreach (addr_q[i]) {
+            addr_q[i] inside {[32'h8000_0000 :  32'h8000_0FFF]};
+            addr_q[i] [5:0] == 'b0;
+            if (i>0) addr_q[i] >= (addr_q[i-1] + 8'h80);
+            if (i==7)addr_q [i] <= 12'h1000; 
+        }
+    
     }
-
-}
+endclass
 /* Q8
 You are writing a constrained-random generator for a queue of packets that are to be sent over a channel.
 Each packet has a unique 8-bit ID and a 16-bit payload length.
