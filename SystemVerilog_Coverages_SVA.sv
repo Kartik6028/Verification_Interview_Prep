@@ -181,81 +181,75 @@ endfunction
 
 //AII
 
-// array of 8 bit vars, constraint for making sure each of the array element is unique 
+//you have an array of 8 bit vars, constraint for making sure each of the array element is unique 
+// bit [31:0] static_fixedsize_arr [5];
+// bit [31:0] dynamic_arr[]; - needs new(5) need to be allocated but happens on runtime
+// bit [31:0] queue [$]; -  doesn't require new - self allocating, has methods like popfront back etc.
+//bit [31:0] assoc_arr [int] - dict like structure int is the key, and 32 bit values.
+// randc + .shuffle() for large/huge arrays/\/
+class my_seq_item extends uvm_sequence_item;
+    `uvm_object_utils (my_seq_item)
+    rand bit [7:0] arr[]; // or arr [$]
+    constraint unq {
+        unique{arr};
+    }
+endclass
 
-rand bit [7:0]arr [10];
-
-
-
-constraint arr {
-    byte data;
-    for (int i =0 ; i< arr.size-1 ; i+=) 
-        for (int j =1; j<size-1;j++    )
-          if (i!=j)  arr[j] != arr[i];
-    arr [i+1] > arr [i];
-}
-//AIE
+//AIE -  qualcomm
 calculate fifo depth for 100BYTES of data, in a fifo which has no timing consideration. 2 Diff freq 
 
-Read freq = 50 MHZ 
-WR FREQ is 150 MHZ
- [ 
-    0: BYTE1 
-    1: BYTE2
-    2: BYTE3  
-    3:
-    4:
-    5:
-  ]
+    Read freq = 50 MHZ 
+    WR FREQ is 150 MHZ
+    [ 
+        0: BYTE1 
+        1: BYTE2
+        2: BYTE3  
+        3:
+        4:
+        5:
+    ]
 
-//AIE
+//AIE - qualcomm
 design 2 inputs 1 en and 1 input, its intent is to detect pos edge on the input when en is 1, as soon as en is 0 out goes 0
 
 
-input a
-input en
-out 
+    input a
+    input en
+    out 
 
-property x @ (posedge clk )
+    property x @ (posedge clk )
 
-$rose (a) && (en) |-> out; 
-endproperty
-
-
-a en    out
-0  0     0  ->  (out) |-> en && $rose(a) 
-0  1     a
-1  0      
-1  1
-
-property y @ (posedge clk )
-$fell(en)|-> (out ==0);
-endproperty
+    $rose (a) && (en) |-> out; 
+    endproperty
 
 
-arr[10]
+    a en    out
+    0  0     0  ->  (out) |-> en && $rose(a) 
+    0  1     a
+    1  0      
+    1  1
 
-[1, 2 ,.   .,.. 9,]
-val1=0;
-equil_index=0
+    property y @ (posedge clk )
+    $fell(en)|-> (out ==0);
+    endproperty
 
 
-//AIE
+//AIE qualcomm
+    while (lhs!=rhs) begin
+        for (int i= equil_index+1; i< size; i++)
+             rhs +=  arr[i] ;
+
+        for (int i = 0 ; i=<equil_index; i++) 
+            if (equil_index ==0) lhs= 0;
+            else  lhs+= arr[i]
+
+        if (lhs==rhs) return equil_index;
+        else if (equil_index == size-1) return 0;
+        else equil_index++;
+
+    end
 
 
-while (lhs!=rhs) begin
-    for (int i= equil_index+1; i< size; i++)
-         rhs +=  arr[i] ;
-
-    for (int i = 0 ; i=<equil_index; i++) 
-        if (equil_index ==0) lhs= 0;
-        else  lhs+= arr[i]
-    
-    if (lhs==rhs) return equil_index;
-    else if (equil_index == size-1) return 0;
-    else equil_index++;
-
-end
 
 /*
 
