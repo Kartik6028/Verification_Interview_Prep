@@ -367,57 +367,8 @@ Optional: when is_streaming==1, consecutive randomizations should prefer monoton
     endfunction
 /*
 
-Q4) Page/Offset Build + Set Index Binding
-Generate an address from page_num and page_offset, bind index bits to a set_id, and support a “large-page” mode.
-Specs
-page_num in [0x1000 : 0x1FFF].
-Two modes:
-large_page==0: page size = 4 KB → page_offset in [0 : 4095].
-large_page==1: page size = 2 MB → page_offset in [0 : 2*1024*1024 - 1].
-Construct: addr = {page_num, page_offset} only when 4KB pages.
-For 2MB pages, ensure resulting addr still falls in [0xA000_0000 : 0xA1FF_FFFF].
-Cache set mapping: set_id (6 bits) must equal the index bits of addr[11:6] (i.e., 64 sets, 64B line).
-Alignment: 64B lines → addr[5:0] == 0.
-Prohibit wraparound across 1MB boundaries for any increment of +N*64B where N∈[0:7].
-*/
-class packet extends from uvm_sequence_item;
-    rand bit [31:0] addr;
-    rand bit [15:0] page_num;
-    rand_bit [15:0]page_offset;
-    rand_bit [31:0]size;
 
-    constraint page_num{
-        page_num inside [32'h1000: 32'h1FFFF];
-    }
-    // addr = page_num , page_offset    
-    constraint add_gen{
-        solve page_offset before addr;
-        if(!large_page) {
-            page_offset inside [32'd0:32'd4095];
-            addr = {page_num, page_offset};
-        }
-        else
-        {
-            page_offset inside [32'd0 : 32'd2*1024*1024 -1];
-            addr inside [32'hA000_0000: 32'hA1FF_FFFF];
-        }
-        addr [5:0] ==0;
-    }
-    constraint addr_gen {
-       if (!large_page) addr = {page_num,page_offset};
-       if (large_page)addr inside  {[0xA000_0000: 0xA1FF_FFFF]};
-       addr [5:0]==0;
-       page_num inside {[16'h1000:16'h1FFF]};
-    
-    }
-    
-    constraint page_offset{
-        size = large_page? (2*1024*1024): 4096;
-        page_offset inside {[16'd0: size-1]};
-    }
-endclass
-
-/* Q5
+/* Q4
 addr must fall in a valid channel and bank range.
 Must be aligned to trans_size.
 When two consecutive transactions target the same bank, the second one must have a higher address.
@@ -453,7 +404,7 @@ class packet extends uvm_sequence_item;
     }
 endclass
 
-/*  Q6
+/*  Q5
 You’re designing a constrained-random generator for DMA transfer descriptors.
 Each descriptor includes:
 A source address
@@ -648,6 +599,44 @@ You want to create a covergroup that ensures the following are exercised:
 7️⃣ Optional bonus: add a coverpoint for addr[11:0] (page offset) with bins
   low, mid, high, near_boundary (like before)
 */
+
+
+
+covergroup cg @(posedge clk iff (ready && valid));
+    btype: coverpoint burst_type {
+
+        bins b1 = {0};
+        bins b2 = {1};
+        bins b3 = {2};
+    }
+
+    blen :coverpoint burst_len {
+        bins b1 = {1};
+        bins b2 = {4};
+        bins b3 = {8};
+        bins b4 = {16};
+    }
+
+    bsize:coverpoint size {
+        bins b1 = {1};
+        bins b2 = {2};
+        bins b3 = {4};
+        bins b4 = {8};
+    }
+
+    baddr:coverpoint addr[11:0]{
+        bins low[]= {[12'd0:12'd512 ]};
+        bins med []= {[12'd513:12'd1024 ] };
+        bins high []={[12'd1024:12'd1789 ]};
+        bins near_boundary []={[12'd1790:12'd2047 ]};
+    }
+    cross burst_type, size {
+        illegal bins = binsof(btype.b3) && binsof(bsize.b4);
+    } 
+
+
+endgroup
+
 
 covergroup cg @(posedge clk iff (valid && ready));
     btype :coverpoint burst_type {

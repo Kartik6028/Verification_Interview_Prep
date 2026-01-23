@@ -1,0 +1,141 @@
+Welcome to Meta!
+
+This is just a simple shared plaintext pad, with no execution capabilities.
+
+When you know what language you would like to use for your interview,
+simply choose it from the dropdown in the left bar.
+
+Enjoy your interview!
+
+//
+1  Write SV Constraints for 8-bit data manipulation?
+ Write a constraint with the following requirements.
+  1. exactly 5 bits of 1 in the data
+  2. 90% of the time, those 5 bits are next to each other. 
+
+ rand bit [7:0] data;
+ rand bit [2:0] i
+  rand [2:0]count
+ constraint data_manip {
+  data [4:0] = 'b1
+ }
+
+ constraint data_manip_dist{
+  dist data {
+    // 11111000
+    // 00011111
+    // 0011110
+    // 01111100
+     // 
+      
+      if (i >0) {
+          data[i] & data [i-1] == 1
+          count=count+1; 
+        }  ;  := 9;
+        else {
+
+        } := 1;
+         
+
+  }
+
+ }
+ constraint count_rand {
+
+  count <= 5;
+ }
+
+2. Write an SV checker to ensure that at any given point in the design there are a maximum of 4 requests(req) and minimum 0 requests in any sliding window of 10 clock(clk) cycles?
+0-10, 1-11, 2-13, ...
+
+property req_max_check @(posedge clk)
+  $rose(clk) |-> [=>4]req 
+endproperty
+
+
+
+3.  Start ‘N’ number of sequences on a sequencer in parallel and wait for all of them to complete?
+seq m_seq[N];
+seqr m_seqr;
+seq m_seqa;
+seq m_seqb;
+
+at ant if the seq[n] end, then stop seqa and seqb, but keep all the other seq[n] running
+
+my_virt_seq #(N=5)  obj
+my_virt_seq #(N=2) obj2
+
+
+class my_virt_seq extends uvm_sequence_item #( tx_item);
+  `uvm_object_utils (my_seq)
+      
+  uvm_sequencer #( T) v_seqr;
+  my_write_Seq1 obj1;
+  my_read_seq1 
+  my_seq arr [$];
+
+  for loop (N)
+    type_id::Create (o)
+    arr.pushback (obj)'
+
+
+    fork 
+      begin
+        foreach (N) begin
+          arr[i].start (v_Seqr)
+          arr.pop_back();
+        end
+
+      begin
+        seqa.start (m_seqr);
+      end
+
+      begin 
+
+      end
+
+        for (int i =0 ;i<N;i++) begin
+           obj.start(v_seqr);
+           obj.set_arbritration_mode (SEQ_ARB_FIFO);
+        end
+      end
+     join_any
+
+
+
+
+     fork begin
+           fork
+            foreach (N) begin
+              rr[i].start (v_Seqr)
+              arr.pop_back();
+              put (lock)
+          end
+          join_any 
+          disable fork
+          end
+
+          T2 :begin
+              seqa.start (v_seqr)
+              get (lock ) 
+              kill
+          end
+          if (get (lock) disable T2 )
+          
+           begin
+              seqb.start (v_seqr)
+          end
+            if (get (lock) disable T2 )
+
+
+     join
+
+
+  task body()
+      for (int i =0 ;i<N;i++) begin
+         obj.start (v_seqr);
+      end
+  endtask
+
+
+endclass

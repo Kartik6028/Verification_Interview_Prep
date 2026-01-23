@@ -163,6 +163,9 @@ endclass : sample_comp
 //    `uvm_config_db#(T)::get(uvm_component cntxt, string inst_name, string field_name, output T value)`
 // Breaking down the arguments:
 // - **cntxt (context)**: The component context from which to start the lookup. Often you pass `this` (meaning "search from this component up the hierarchy"). The config DB will search in this component and upwards to ancestors for a matching entry.
+//cntxt = this ka matlab hota hai:
+//“Is point se hierarchy me niche (descendants) tak, jinko inst_name match kare, unko ye config available kar do.”
+
 // - **inst_name**: The instance name (or pattern) of the target relative to the context. This can be:
 //    * a specific immediate child name or hierarchical path (e.g., `"agentA"` or `"agentA.monitor"`),
 //    * an empty string `""` which means "the context itself",
@@ -234,6 +237,66 @@ endclass : my_agent
 // - **report_phase** – the final phase, used to report the outcome of the test and clean up. This could print a summary, call `uvm_print_topology()` again for logging, or close files. It runs after check.
 // 
 // All these phase callbacks are functions (except run_phase, which is a task). They are typically implemented in your components if needed. Below is a simplified example illustrating how some components might implement these phases:
+
+
+class my_env extends uvm_env;
+  `uvm_component_utils(my_env)
+
+  my_agent agent;
+
+  function new(string name="my_env", uvm_component parent=null);
+    super.new(name, parent);
+  endfunction
+
+  function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+    agent = my_agent::type_id::create("agent", this);
+  endfunction
+
+  // ------------------------------------------------------------
+  // end_of_elaboration_phase:
+  // - Hierarchy exists (all components constructed)
+  // - Great time to print topology and finalize/verify configuration
+  // ------------------------------------------------------------
+  function void end_of_elaboration_phase(uvm_phase phase);
+    super.end_of_elaboration_phase(phase);
+
+    `uvm_info(get_type_name(),
+              "=== End of elaboration: printing UVM topology ===",
+              UVM_LOW)
+
+    // Print the component hierarchy (who exists where)
+    uvm_top.print_topology();
+
+    // Example: verify a critical config was set (vif/cfg etc.)
+    if (agent == null)
+      `uvm_fatal("ELO", "Agent was not created!");
+
+    if (agent.vif == null)
+      `uvm_fatal("ELO", "agent.vif is null (likely config_db set/get issue)");
+  endfunction
+
+  // ------------------------------------------------------------
+  // start_of_simulation_phase:
+  // - Just before time starts (before run_phase consumes time)
+  // - Great for final checks + setting report verbosity/actions
+  // ------------------------------------------------------------
+  function void start_of_simulation_phase(uvm_phase phase);
+    super.start_of_simulation_phase(phase);
+
+    `uvm_info(get_type_name(),
+              "=== Start of simulation: enabling detailed reporting ===",
+              UVM_LOW)
+
+    // Example: bump verbosity for a component at runtime
+    agent.set_report_verbosity_level(UVM_HIGH);
+
+    // Example: set severity/action (optional style)
+    // uvm_top.set_report_severity_action_hier(UVM_WARNING, UVM_DISPLAY);
+  endfunction
+
+endclass
+
 class example_monitor extends uvm_monitor;
   `uvm_component_utils(example_monitor)
   uvm_analysis_port#(int) analysis_port;  // This monitor will send int transactions via an analysis port
